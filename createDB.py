@@ -1,4 +1,5 @@
 import sqlite3
+import createEntrie
 
 sql_script = """
 -- Включение поддержки внешних ключей
@@ -87,6 +88,7 @@ try:
     cursor = conn.cursor()
     cursor.executescript(sql_script)
     conn.commit()
+    createEntrie.main()
     print("База данных успешно создана!")
 except sqlite3.Error as e:
     print("Ошибка при работе с базой данных:", e)
