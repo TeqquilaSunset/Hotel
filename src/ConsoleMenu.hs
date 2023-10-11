@@ -1,8 +1,10 @@
+{-# LANGUAGE OverloadedStrings, UnicodeSyntax #-}
 module ConsoleMenu
     ( menuLoop
     ) where
 
 import System.IO (hFlush, stdout)
+import RoomType
 
 menuLoop :: IO ()
 menuLoop = do
@@ -14,7 +16,7 @@ menuLoop = do
     choice <- getLine
     case choice of
         "1" -> do
-            putStrLn "Вы просматриваете типы номеров."
+            getType
             menuLoop
         "2" -> do
             putStrLn "Вы забронировали номер."
