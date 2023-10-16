@@ -19,9 +19,10 @@ data RoomType = RoomType {
 instance FromRow RoomType where
   fromRow = RoomType <$> field <*> field <*> field <*> field <*> field
 
-getRoomTypes :: Connection -> IO [RoomType]
-getRoomTypes conn = 
-    query_ conn "SELECT * FROM Room_Types;"
+-- Обновленная функция, теперь принимающая минимальную вместимость как аргумент
+getRoomTypes :: Connection -> Int -> IO [RoomType]
+getRoomTypes conn minCapacity = 
+    query conn "SELECT * FROM Room_Types WHERE Room_Capacity >= ?;" (Only minCapacity)
 
 -- Функция для вывода одного RoomType в виде строки таблицы
 printRoomType :: RoomType -> IO ()
@@ -32,12 +33,12 @@ printRoomType rt =
            (pricePerNight rt) 
            (roomCapacity rt)
 
-getType :: IO ()
-getType = do
+-- Обновленная функция, теперь принимающая минимальную вместимость как аргумент
+getType :: Int -> IO ()
+getType minCapacity = do
     conn <- open "hotel.db"
-    roomTypes <- getRoomTypes conn
+    roomTypes <- getRoomTypes conn minCapacity  -- Передаем минимальную вместимость в функцию getRoomTypes
     -- Печать заголовков таблицы
-
     printf "%-25s %-90s %-10s %-13s\n" ("Название" :: String) ("Описание" :: String) ("Цена" :: String) ("Вместимость" :: String)
     putStrLn $ replicate 140 '-'
     -- Печать каждого RoomType в виде строки таблицы

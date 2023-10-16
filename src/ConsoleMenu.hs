@@ -19,10 +19,10 @@ menuLoop = do
     choice <- getLine
     case choice of
         "1" -> do
-            getType
+            getType 0
             menuLoop
         "2" -> do
-            bookRoom
+            bookingRoom
             menuLoop
         "3" -> putStrLn "Досвидания!"
         "4" -> do
