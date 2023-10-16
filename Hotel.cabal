@@ -25,6 +25,8 @@ source-repository head
 
 library
   exposed-modules:
+      Booking
+      Client
       ConsoleMenu
       RoomType
   other-modules:

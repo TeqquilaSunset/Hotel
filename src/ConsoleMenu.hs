@@ -5,6 +5,9 @@ module ConsoleMenu
 
 import System.IO (hFlush, stdout)
 import RoomType
+import Booking
+import Client
+
 
 menuLoop :: IO ()
 menuLoop = do
@@ -19,9 +22,12 @@ menuLoop = do
             getType
             menuLoop
         "2" -> do
-            putStrLn "Вы забронировали номер."
+            bookRoom
             menuLoop
         "3" -> putStrLn "Досвидания!"
+        "4" -> do
+            addClientsAndPassports
+            menuLoop
         _   -> do
             putStrLn "Некорректный выбор. Пожалуйста, попробуйсте еще раз."
             menuLoop
