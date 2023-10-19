@@ -8,6 +8,7 @@ import Database.SQLite.Simple
 import Data.Time
 import Text.Read (readMaybe)
 import Control.Monad
+import Client
 
 -- Функция для получения даты от пользователя с проверкой ввода
 getDate :: String -> IO Day
@@ -152,7 +153,12 @@ bookingRoom = do
         roomTypeIndex <- getRoomTypeIndex "Введите номер выбранного типа номера:"
         let (selectedRoomType, _) = availableRoomTypes !! (roomTypeIndex - 1)
         
-        clientIDs <- getClientIDs "Введите ID клиентов, разделенные запятыми:"
+
+        putStrLn "Введите количество гостей: "
+        input <- getLine
+        let number = read input :: Int
+
+        clientIDs <- addClientsAndPassports number
         
         bookRoom conn selectedRoomType checkInDate checkOutDate guestCount clientIDs
     

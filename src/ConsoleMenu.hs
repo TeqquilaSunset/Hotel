@@ -26,7 +26,7 @@ menuLoop = do
             menuLoop
         "3" -> putStrLn "Досвидания!"
         "4" -> do
-            addClientsAndPassports
+            clientIds <- addClientsAndPassports 2  -- количество клиентов
             menuLoop
         _   -> do
             putStrLn "Некорректный выбор. Пожалуйста, попробуйсте еще раз."

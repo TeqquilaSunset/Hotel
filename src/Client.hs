@@ -83,14 +83,17 @@ updateClientPassportId conn clientId passportId =
         "UPDATE Clients SET Passport_Id = ? WHERE Client_ID = ?"
         (passportId, clientId)
 
-addClientsAndPassports :: IO ()
-addClientsAndPassports = do
+addClientsAndPassports :: Int -> IO [Int]
+addClientsAndPassports n = do
     conn <- open "hotel.db"
-    client <- getPersonInfo
-    clientId <- addClient conn client
-    putStrLn "Введите информацию о паспорте:"
-    passport <- getPassportInfo
-    passportId <- addPassport conn clientId (passport { clientId = clientId })
-    updateClientPassportId conn clientId passportId
+    clientIds <- mapM (\_ -> do
+        client <- getPersonInfo
+        clientId <- addClient conn client
+        putStrLn "Введите информацию о паспорте:"
+        passport <- getPassportInfo
+        passportId <- addPassport conn clientId (passport { clientId = clientId })
+        updateClientPassportId conn clientId passportId
+        return clientId) [1..n]
     close conn
+    return clientIds
 
