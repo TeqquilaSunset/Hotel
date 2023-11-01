@@ -5,7 +5,7 @@ module Client
     ) where
 
 import Text.Read (readMaybe)
-
+import Data.Maybe (fromMaybe)
 import Database.SQLite.Simple
 import Data.Time
 import Data.Time.Format
@@ -81,6 +81,15 @@ getPassportSerial = do
             putStrLn "Серия паспорта должна быть 4-значным целым числом."
             getPassportSerial
 
+findClientByPassport :: Connection -> Int -> Int -> IO (Maybe Int)
+findClientByPassport conn passportSerial passportNumber = do
+    result <- query conn
+        "SELECT Client_ID FROM Passports WHERE Serial = ? AND Number = ?"
+        (passportSerial, passportNumber)
+    case result of
+        [Only clientId] -> return (Just clientId)
+        _ -> return Nothing
+
 -- Основная функция для получения паспортной информации
 getPassportInfo :: IO Passport
 getPassportInfo = do
@@ -117,13 +126,24 @@ addClientsAndPassports :: Int -> IO [Int]
 addClientsAndPassports n = do
     conn <- open "hotel.db"
     clientIds <- mapM (\_ -> do
-        client <- getPersonInfo
-        clientId <- addClient conn client
         putStrLn "Введите информацию о паспорте:"
         passport <- getPassportInfo
-        passportId <- addPassport conn clientId (passport { clientId = clientId })
-        updateClientPassportId conn clientId passportId
-        return clientId) [1..n]
+        maybeClientId <- findClientByPassport conn (serial passport) (number passport)
+        case maybeClientId of
+            Just clientId -> do
+                -- putStrLn "Пользователь с таким паспортом уже существует. Обновление данных."
+                updateClientPassportId conn clientId (fromMaybe 0 maybeClientId)
+                return clientId
+            Nothing -> do
+                client <- getPersonInfo
+                clientId <- addClient conn client
+                passportId <- addPassport conn clientId passport
+                updateClientPassportId conn clientId passportId
+                return clientId
+        ) [1..n]
     close conn
     return clientIds
+
+
+
 
