@@ -16,10 +16,27 @@ getDate prompt = do
     putStrLn prompt
     dateString <- getLine
     case parseTimeM True defaultTimeLocale "%Y-%m-%d" dateString :: Maybe Day of
-        Just date -> return date
+        Just date -> do
+            currentDate <- utctDay <$> getCurrentTime
+            if date < currentDate
+                then do
+                    putStrLn "\nВведенная дата раньше текущей. Пожалуйста, попробуйте еще раз."
+                    getDate prompt
+                else
+                    return date
         Nothing -> do
-            putStrLn "Некорректный ввод. Пожалуйста, попробуйте еще раз."
+            putStrLn "\nНекорректный ввод. Пожалуйста, попробуйте еще раз."
             getDate prompt
+
+-- Функция для ввода даты выезда с проверкой и повторным запросом при ошибке
+getCheckOutDate :: Day -> IO Day
+getCheckOutDate checkInDate = do
+    checkOutDate <- getDate "Введите дату выезда (ГГГГ-ММ-ДД):"
+    if checkOutDate > checkInDate
+        then return checkOutDate
+        else do
+            putStrLn "Дата выезда должна быть позже даты заезда и отличаться хотя бы на 1 день. Пожалуйста, попробуйте еще раз."
+            getCheckOutDate checkInDate
 
 -- Функция для получения количества гостей от пользователя с проверкой ввода
 getGuestCount :: IO Int
@@ -27,9 +44,13 @@ getGuestCount = do
     putStrLn "Введите количество гостей:"
     guestCountStr <- getLine
     case readMaybe guestCountStr of
-        Just count -> return count
+        Just count
+            | count > 0 -> return count
+            | otherwise -> do
+                putStrLn "Количество гостей должно быть положительным числом. Пожалуйста, попробуйте еще раз."
+                getGuestCount
         Nothing -> do
-            putStrLn "Некорректный ввод. Пожалуйста, попробуйте еще раз."
+            putStrLn "Некорректный ввод. Пожалуйста, введите положительное целое число."
             getGuestCount
 
 getRoomPreference :: IO Bool
@@ -141,11 +162,15 @@ bookingRoom = do
     conn <- open "hotel.db"
     
     checkInDate <- getDate "Введите дату заезда (ГГГГ-ММ-ДД):"
-    checkOutDate <- getDate "Введите дату выезда (ГГГГ-ММ-ДД):"
+    checkOutDate <- getCheckOutDate checkInDate
+
+
     guestCount <- getGuestCount
     
     availableRoomTypes <- getAvailableRoomTypes conn checkInDate checkOutDate guestCount
-    unless (null availableRoomTypes) $ do
+    if null availableRoomTypes
+    then putStrLn "Для указанных вами дат и количества гостей, доступных номеров нет.\n Измените даты, а также проверьте доступные типы номеров."
+    else do
         putStrLn "Выберите один из доступных типов номеров:"
         forM_ (zip [1..] availableRoomTypes) $ \(i, (roomType, pricePerNight)) ->
             putStrLn $ show i ++ ". Тип: " ++ roomType ++ ", Стоимость за ночь: " ++ show pricePerNight ++ " руб."
@@ -154,11 +179,11 @@ bookingRoom = do
         let (selectedRoomType, _) = availableRoomTypes !! (roomTypeIndex - 1)
         
 
-        putStrLn "Введите количество гостей: "
-        input <- getLine
-        let number = read input :: Int
+        -- putStrLn "Введите количество гостей: "
+        -- input <- getLine
+        -- let number = read input :: Int
 
-        clientIDs <- addClientsAndPassports number
+        clientIDs <- addClientsAndPassports guestCount
         
         bookRoom conn selectedRoomType checkInDate checkOutDate guestCount clientIDs
     

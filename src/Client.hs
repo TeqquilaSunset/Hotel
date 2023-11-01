@@ -4,6 +4,8 @@ module Client
     ( addClientsAndPassports
     ) where
 
+import Text.Read (readMaybe)
+
 import Database.SQLite.Simple
 import Data.Time
 import Data.Time.Format
@@ -29,6 +31,16 @@ data Passport = Passport {
 parseDate :: String -> Day
 parseDate = parseTimeOrError True defaultTimeLocale "%Y-%m-%d"
 
+getDate :: String -> IO Day
+getDate prompt = do
+    putStrLn prompt
+    dateString <- getLine
+    case parseTimeM True defaultTimeLocale "%Y-%m-%d" dateString :: Maybe Day of
+        Just date -> return date
+        Nothing -> do
+            putStrLn "\nНекорректный ввод. Пожалуйста, попробуйте еще раз."
+            getDate prompt
+
 getPersonInfo :: IO Client
 getPersonInfo = do
     putStrLn "Введите имя: "
@@ -40,23 +52,41 @@ getPersonInfo = do
     putStrLn "Введите номер телефона: "
     phoneNumber <- getLine
     putStrLn "Введите электронную почту: "
-    email <- getLine
-    putStrLn "Введите дату рождения (ГГГГ-ММ-ДД): "
-    dobStr <- getLine
-    let dateOfBirth = parseDate dobStr
+    email <- getLine 
+    -- putStrLn "Введите дату рождения (ГГГГ-ММ-ДД): "
+    dateOfBirth <- getDate "Введите дату рождения (ГГГГ-ММ-ДД): "
     return (Client name middleName surname phoneNumber email dateOfBirth Nothing)
 
+-- Функция для ввода и проверки номера паспорта
+getPassportNumber :: IO Int
+getPassportNumber = do
+    putStrLn "Введите номер паспорта (6-значное целое число): "
+    input <- getLine
+    let maybeNumber = readMaybe input :: Maybe Int
+    case maybeNumber of
+        Just number | length input == 6 -> return number
+        _ -> do
+            putStrLn "Номер паспорта должен быть 6-значным целым числом."
+            getPassportNumber
+
+-- Функция для ввода и проверки серии паспорта
+getPassportSerial :: IO Int
+getPassportSerial = do
+    putStrLn "Введите серию паспорта (4-значное целое число): "
+    input <- getLine
+    let maybeSerial = readMaybe input :: Maybe Int
+    case maybeSerial of
+        Just serial | length input == 4 -> return serial
+        _ -> do
+            putStrLn "Серия паспорта должна быть 4-значным целым числом."
+            getPassportSerial
+
+-- Основная функция для получения паспортной информации
 getPassportInfo :: IO Passport
 getPassportInfo = do
-    putStrLn "Введите номер паспорта: "
-    numberStr <- getLine
-    let number = read numberStr :: Int
-    putStrLn "Введите серию паспорта: "
-    serialStr <- getLine
-    let serial = read serialStr :: Int
-    putStrLn "Введите дату выдачи паспорта (ГГГГ-ММ-ДД): "
-    doiStr <- getLine
-    let dateOfIssue = parseDate doiStr
+    number <- getPassportNumber
+    serial <- getPassportSerial
+    dateOfIssue <- getDate "Введите дату выдачи паспорта (ГГГГ-ММ-ДД): "
     putStrLn "Введите, кем выдан паспорт: "
     issued <- getLine
     return (Passport 0 number serial dateOfIssue issued)
