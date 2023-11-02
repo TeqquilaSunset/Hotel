@@ -12,7 +12,7 @@ import Client
 menuLoop :: IO ()
 menuLoop = do
     putStrLn "\nВы находитесь в главном меню системы отель."
-    putStrLn "Вы можете открыть следующие пункты"
+    putStrLn "Вы можете открыть следующие пункты:"
     putStrLn "1. Посмотреть типы комнат"
     putStrLn "2. Забронировать номер"
     putStrLn "3. Выйти"
@@ -25,7 +25,7 @@ menuLoop = do
             menuLoop
         "2" -> do
             bookingRoom
-            putStrLn "\nВы успешно забронировали номер !!!\n\n"
+            putStrLn "\nПроцесс бронирования закончен.\n"
             menuLoop
         "3" -> putStrLn "Досвидания!"
         _   -> do

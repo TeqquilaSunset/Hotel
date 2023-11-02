@@ -85,16 +85,18 @@ getAvailableRoomTypes conn checkInDate checkOutDate minGuestCount = do
     rows <- query conn
         "WITH AvailableRoomNumbers AS ( \
         \    SELECT Rooms.Room_Number FROM Rooms \
-        \    LEFT JOIN Bookings ON Rooms.Room_Number = Bookings.Room_Number \
-        \    WHERE (Bookings.Check_In_Date IS NULL OR Bookings.Check_Out_Date <= ? OR Bookings.Check_In_Date >= ?) \
-        \    GROUP BY Rooms.Room_Number \
-        \) \
+        \    WHERE Rooms.Room_Number NOT IN ( \
+        \    SELECT Bookings.Room_Number \
+        \    FROM Bookings \
+        \    WHERE (Bookings.Check_In_Date BETWEEN ? AND ?) \
+        \    OR (Bookings.Check_Out_Date BETWEEN ? AND ?) \
+        \)) \
         \SELECT DISTINCT Room_Types.Name_Type, Room_Types.Price_Per_Night \
         \FROM Rooms \
         \JOIN Room_Types ON Rooms.Room_Type_ID = Room_Types.Room_Type_ID \
         \JOIN AvailableRoomNumbers ON Rooms.Room_Number = AvailableRoomNumbers.Room_Number \
         \WHERE Room_Types.Room_Capacity >= ?"
-        (checkInDate, checkOutDate, minGuestCount)
+        (checkInDate, checkOutDate, checkInDate, checkOutDate, minGuestCount)
     return rows
 
 bookRoom :: Connection -> String -> Day -> Day -> Int -> [Int] -> String -> IO ()
@@ -105,14 +107,18 @@ bookRoom conn roomType checkInDate checkOutDate guestCount clientIDs paymentMeth
         \    JOIN Room_Types ON Rooms.Room_Type_ID = Room_Types.Room_Type_ID \
         \    LEFT JOIN Bookings ON Rooms.Room_Number = Bookings.Room_Number \
         \    WHERE Room_Types.Name_Type = ? \
-        \    AND (Bookings.Check_In_Date IS NULL OR Bookings.Check_Out_Date <= ? OR Bookings.Check_In_Date >= ?) \
+        \    AND NOT EXISTS ( \
+        \        SELECT 1 FROM Bookings \
+        \        WHERE Rooms.Room_Number = Bookings.Room_Number \
+        \        AND (Bookings.Check_In_Date BETWEEN ? AND ? OR Bookings.Check_Out_Date BETWEEN ? AND ?) \
+        \    ) \
         \    LIMIT 1 \
         \) \
         \SELECT Rooms.Room_Number, Room_Types.Price_Per_Night \
         \FROM Rooms \
         \JOIN Room_Types ON Rooms.Room_Type_ID = Room_Types.Room_Type_ID \
         \JOIN AvailableRoom ON Rooms.Room_Number = AvailableRoom.Room_Number"
-        (roomType, checkInDate, checkOutDate) :: IO [(Int, Float)]
+        (roomType, checkInDate, checkOutDate, checkInDate, checkOutDate) :: IO [(Int, Float)]
     case rows of
         ((roomNumber, pricePerNight):_) -> do
             let bookingInfo = BookingInfo {
@@ -181,7 +187,7 @@ bookingRoom = do
 
     availableRoomTypes <- getAvailableRoomTypes conn checkInDate checkOutDate guestCount
     if null availableRoomTypes
-        then putStrLn "Для указанных вами дат и количества гостей, доступных номеров нет.\n Измените даты, а также проверьте доступные типы номеров."
+        then putStrLn "Для указанных вами дат и количества гостей, доступных номеров нет.\nИзмените даты, а также проверьте доступные типы номеров."
         else do
             putStrLn "Выберите один из доступных типов номеров:"
             forM_ (zip [1..] availableRoomTypes) $ \(i, (roomType, pricePerNight)) ->
