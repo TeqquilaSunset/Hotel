@@ -131,7 +131,7 @@ addClientsAndPassports n = do
         maybeClientId <- findClientByPassport conn (serial passport) (number passport)
         case maybeClientId of
             Just clientId -> do
-                -- putStrLn "Пользователь с таким паспортом уже существует. Обновление данных."
+                putStrLn "Пользователь с таким паспортом уже существует, остальные данные взяты из базы."
                 updateClientPassportId conn clientId (fromMaybe 0 maybeClientId)
                 return clientId
             Nothing -> do

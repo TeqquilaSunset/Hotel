@@ -78,6 +78,8 @@ data BookingInfo = BookingInfo {
     paymentStatus :: Bool
 } deriving (Show)
 
+
+
 getAvailableRoomTypes :: Connection -> Day -> Day -> Int -> IO [(String, Float)]
 getAvailableRoomTypes conn checkInDate checkOutDate minGuestCount = do
     rows <- query conn
@@ -95,8 +97,8 @@ getAvailableRoomTypes conn checkInDate checkOutDate minGuestCount = do
         (checkInDate, checkOutDate, minGuestCount)
     return rows
 
-bookRoom :: Connection -> String -> Day -> Day -> Int -> [Int] -> IO ()
-bookRoom conn roomType checkInDate checkOutDate guestCount clientIDs = do
+bookRoom :: Connection -> String -> Day -> Day -> Int -> [Int] -> String -> IO ()
+bookRoom conn roomType checkInDate checkOutDate guestCount clientIDs paymentMethod = do
     rows <- query conn
         "WITH AvailableRoom AS ( \
         \    SELECT Rooms.Room_Number FROM Rooms \
@@ -118,8 +120,8 @@ bookRoom conn roomType checkInDate checkOutDate guestCount clientIDs = do
                 checkInDate = checkInDate,
                 checkOutDate = checkOutDate,
                 guestCount = guestCount,
-                paymentMethod = "Credit Card",
-                paymentStatus = True
+                paymentMethod = paymentMethod,
+                paymentStatus = paymentMethod == "Онлайн"
             }
             createBooking conn bookingInfo clientIDs
         [] -> putStrLn "Извините, нет доступных номеров выбранного типа."
@@ -135,6 +137,17 @@ createBooking conn bookingInfo clientIDs = do
         execute conn
             "INSERT INTO ClientsBookings (Client_ID, Booking_ID) VALUES (?, ?)"
             (clientID, bookingID)
+
+getPaymentMethod :: IO String
+getPaymentMethod = do
+    putStrLn "Выберите метод оплаты:\n1. Онлайн\n2. Наличные"
+    method <- getLine
+    case method of
+        "1" -> return "Онлайн"
+        "2" -> return "Наличными"
+        _ -> do
+            putStrLn "Некорректный выбор."
+            getPaymentMethod
 
 getRoomTypeIndex :: String -> IO Int
 getRoomTypeIndex prompt = do
@@ -160,31 +173,26 @@ getClientIDs prompt = do
 bookingRoom :: IO ()
 bookingRoom = do
     conn <- open "hotel.db"
-    
+
     checkInDate <- getDate "Введите дату заезда (ГГГГ-ММ-ДД):"
     checkOutDate <- getCheckOutDate checkInDate
 
-
     guestCount <- getGuestCount
-    
+
     availableRoomTypes <- getAvailableRoomTypes conn checkInDate checkOutDate guestCount
     if null availableRoomTypes
-    then putStrLn "Для указанных вами дат и количества гостей, доступных номеров нет.\n Измените даты, а также проверьте доступные типы номеров."
-    else do
-        putStrLn "Выберите один из доступных типов номеров:"
-        forM_ (zip [1..] availableRoomTypes) $ \(i, (roomType, pricePerNight)) ->
-            putStrLn $ show i ++ ". Тип: " ++ roomType ++ ", Стоимость за ночь: " ++ show pricePerNight ++ " руб."
-        
-        roomTypeIndex <- getRoomTypeIndex "Введите номер выбранного типа номера:"
-        let (selectedRoomType, _) = availableRoomTypes !! (roomTypeIndex - 1)
-        
+        then putStrLn "Для указанных вами дат и количества гостей, доступных номеров нет.\n Измените даты, а также проверьте доступные типы номеров."
+        else do
+            putStrLn "Выберите один из доступных типов номеров:"
+            forM_ (zip [1..] availableRoomTypes) $ \(i, (roomType, pricePerNight)) ->
+                putStrLn $ show i ++ ". Тип: " ++ roomType ++ ", Стоимость за ночь: " ++ show pricePerNight ++ " руб."
 
-        -- putStrLn "Введите количество гостей: "
-        -- input <- getLine
-        -- let number = read input :: Int
+            roomTypeIndex <- getRoomTypeIndex "Введите номер выбранного типа номера:"
+            let (selectedRoomType, _) = availableRoomTypes !! (roomTypeIndex - 1)
 
-        clientIDs <- addClientsAndPassports guestCount
-        
-        bookRoom conn selectedRoomType checkInDate checkOutDate guestCount clientIDs
-    
+            clientIDs <- addClientsAndPassports guestCount
+            paymentMethod <- getPaymentMethod
+
+            bookRoom conn selectedRoomType checkInDate checkOutDate guestCount clientIDs paymentMethod
+
     close conn
