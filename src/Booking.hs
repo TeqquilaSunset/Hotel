@@ -90,14 +90,16 @@ getAvailableRoomTypes conn checkInDate checkOutDate minGuestCount = do
         \    FROM Bookings \
         \    WHERE (Bookings.Check_In_Date BETWEEN ? AND ?) \
         \    OR (Bookings.Check_Out_Date BETWEEN ? AND ?) \
+        \    OR (Bookings.Check_In_Date <= ? AND Bookings.Check_Out_Date >= ?) \
         \)) \
         \SELECT DISTINCT Room_Types.Name_Type, Room_Types.Price_Per_Night \
         \FROM Rooms \
         \JOIN Room_Types ON Rooms.Room_Type_ID = Room_Types.Room_Type_ID \
         \JOIN AvailableRoomNumbers ON Rooms.Room_Number = AvailableRoomNumbers.Room_Number \
         \WHERE Room_Types.Room_Capacity >= ?"
-        (checkInDate, checkOutDate, checkInDate, checkOutDate, minGuestCount)
+        (checkInDate, checkOutDate, checkInDate, checkOutDate, checkInDate, checkOutDate, minGuestCount)
     return rows
+
 
 bookRoom :: Connection -> String -> Day -> Day -> Int -> [Int] -> String -> IO ()
 bookRoom conn roomType checkInDate checkOutDate guestCount clientIDs paymentMethod = do
@@ -155,15 +157,21 @@ getPaymentMethod = do
             putStrLn "Некорректный выбор."
             getPaymentMethod
 
-getRoomTypeIndex :: String -> IO Int
-getRoomTypeIndex prompt = do
+getRoomTypeIndex :: String -> Int -> IO Int
+getRoomTypeIndex prompt maxIndex = do
     putStrLn prompt
     input <- getLine
-    case readMaybe input of
-        Just index -> return index
-        Nothing -> do
-            putStrLn "Некорректный ввод. Пожалуйста, попробуйте еще раз."
-            getRoomTypeIndex prompt
+    case reads input :: [(Int, String)] of
+        [(roomTypeIndex, "")] ->
+            if roomTypeIndex >= 1 && roomTypeIndex <= maxIndex
+                then return roomTypeIndex
+                else do
+                    putStrLn "Неверный индекс. Пожалуйста, выберите корректный индекс."
+                    getRoomTypeIndex prompt maxIndex
+        _ -> do
+            putStrLn "Неверный ввод. Пожалуйста, введите целое число."
+            getRoomTypeIndex prompt maxIndex
+
 
 getClientIDs :: String -> IO [Int]
 getClientIDs prompt = do
@@ -174,7 +182,6 @@ getClientIDs prompt = do
         Nothing -> do
             putStrLn "Некорректный ввод. Пожалуйста, попробуйте еще раз."
             getClientIDs prompt
-
 
 bookingRoom :: IO ()
 bookingRoom = do
@@ -193,8 +200,12 @@ bookingRoom = do
             forM_ (zip [1..] availableRoomTypes) $ \(i, (roomType, pricePerNight)) ->
                 putStrLn $ show i ++ ". Тип: " ++ roomType ++ ", Стоимость за ночь: " ++ show pricePerNight ++ " руб."
 
-            roomTypeIndex <- getRoomTypeIndex "Введите номер выбранного типа номера:"
+            roomTypeIndex <- getRoomTypeIndex "Введите номер выбранного типа номера:"  (length availableRoomTypes)
             let (selectedRoomType, _) = availableRoomTypes !! (roomTypeIndex - 1)
+            putStrLn $ "Вы выбрали тип номера: " ++ selectedRoomType
+            
+            -- roomTypeIndex <- getRoomTypeIndex "Введите номер выбранного типа номера:"
+            -- let (selectedRoomType, _) = availableRoomTypes !! (roomTypeIndex - 1)
 
             clientIDs <- addClientsAndPassports guestCount
             paymentMethod <- getPaymentMethod

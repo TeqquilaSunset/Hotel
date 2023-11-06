@@ -4,5 +4,5 @@ import ConsoleMenu
 
 main :: IO ()
 main = do
-    putStrLn "Welcome to the Hotel!"
+    putStrLn "Добро пожаловать в систему отель!"
     menuLoop
